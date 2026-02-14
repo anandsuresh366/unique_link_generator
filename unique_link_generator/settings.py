@@ -4,6 +4,9 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Add your BASE_URL here
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
 # ==============================
 # SECURITY
 # ==============================

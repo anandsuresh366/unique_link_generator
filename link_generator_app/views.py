@@ -1,23 +1,34 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden
+from django.conf import settings
 from .models import ProtectedLink, Device
 from .utils import get_fingerprint
 
 def generate_link(request):
-    if request.method=="POST":
-        link=ProtectedLink.objects.create(
+    if request.method == "POST":
+        link = ProtectedLink.objects.create(
             original_url=request.POST.get("original_url"),
             device_limit=int(request.POST.get("device_limit"))
         )
-        return render(request,"index.html",{"protected_url":request.build_absolute_uri(f"/go/{link.token}/")})
-    return render(request,"index.html")
 
-def protected_view(request,token):
-    link=get_object_or_404(ProtectedLink,token=token)
-    fp=get_fingerprint(request)
-    if Device.objects.filter(link=link,fingerprint=fp).exists():
+        # Use BASE_URL from settings with fallback and remove trailing slash
+        base_url = getattr(settings, "BASE_URL", request.build_absolute_uri("/").rstrip("/"))
+        protected_url = f"{base_url}/go/{link.token}/"
+
+        return render(request, "index.html", {"protected_url": protected_url})
+
+    return render(request, "index.html")
+
+
+def protected_view(request, token):
+    link = get_object_or_404(ProtectedLink, token=token)
+    fp = get_fingerprint(request)
+
+    if Device.objects.filter(link=link, fingerprint=fp).exists():
         return redirect(link.original_url)
-    if Device.objects.filter(link=link).count()>=link.device_limit:
+
+    if Device.objects.filter(link=link).count() >= link.device_limit:
         return HttpResponseForbidden("DEVICE LIMIT REACHED")
-    Device.objects.create(link=link,fingerprint=fp)
+
+    Device.objects.create(link=link, fingerprint=fp)
     return redirect(link.original_url)

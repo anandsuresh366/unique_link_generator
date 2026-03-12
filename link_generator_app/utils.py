@@ -1,17 +1,14 @@
-import hashlib
+import uuid
 
 def get_fingerprint(request):
+    """
+    Returns a stable device fingerprint.
+    If the device has no cookie yet, generate a new UUID.
+    """
 
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    fingerprint = request.COOKIES.get("device_fp")
 
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0].strip()
-    else:
-        ip = request.META.get("REMOTE_ADDR", "")
+    if not fingerprint:
+        fingerprint = str(uuid.uuid4())
 
-    user_agent = request.META.get("HTTP_USER_AGENT", "")
-    language = request.META.get("HTTP_ACCEPT_LANGUAGE", "")
-
-    raw_string = f"{ip}|{user_agent}|{language}"
-
-    return hashlib.sha256(raw_string.encode("utf-8")).hexdigest()
+    return fingerprint

@@ -2,7 +2,6 @@ import uuid
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden
-from django.conf import settings
 from django.db import transaction
 from django.urls import reverse
 
@@ -55,7 +54,9 @@ def protected_view(request, token):
 
         if not device_exists:
 
-            if Device.objects.filter(link=link).count() >= link.device_limit:
+            device_count = Device.objects.filter(link=link).count()
+
+            if device_count >= link.device_limit:
                 return HttpResponseForbidden("""
                     <h1 style="color:red;text-align:center;margin-top:20%;">
                         DEVICE LIMIT REACHED
@@ -67,4 +68,14 @@ def protected_view(request, token):
                 fingerprint=fingerprint
             )
 
-    return redirect(link.original_url)
+    response = redirect(link.original_url)
+
+    # Set fingerprint cookie if not already set
+    if not request.COOKIES.get("device_fp"):
+        response.set_cookie(
+            "device_fp",
+            fingerprint,
+            max_age=60*60*24*365  # 1 year
+        )
+
+    return response

@@ -13,9 +13,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-for-local-only")
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-
 ALLOWED_HOSTS = [
     ".vercel.app",
+    "unique-link-generator-delta.vercel.app",
     "localhost",
     "127.0.0.1",
 ]
@@ -67,8 +67,11 @@ ROOT_URLCONF = 'unique_link_generator.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
         'DIRS': [BASE_DIR / "templates"],
+
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -93,10 +96,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
     DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL)
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True
+        )
     }
 else:
-    # Local development
+    # Local SQLite database
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -112,11 +119,12 @@ else:
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Only include STATICFILES_DIRS if folder exists
 STATIC_DIR = BASE_DIR / "static"
 
 if STATIC_DIR.exists():
     STATICFILES_DIRS = [STATIC_DIR]
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -133,6 +141,15 @@ else:
         "BASE_URL",
         "https://unique-link-generator-delta.vercel.app"
     )
+
+
+# ==============================
+# CSRF (IMPORTANT FOR VERCEL)
+# ==============================
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.vercel.app",
+]
 
 
 # ==============================

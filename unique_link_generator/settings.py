@@ -1,26 +1,30 @@
 import os
 from pathlib import Path
-import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Add your BASE_URL here
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 # ==============================
 # SECURITY
 # ==============================
+
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-for-local-only")
 
-# DEBUG: True on localhost, False on cloud
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG=False
 
-# Hosts: localhost by default, override in Kubernetes
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = [
+    ".vercel.app",
+    "localhost",
+    "127.0.0.1",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.vercel.app",
+]
 
 # ==============================
 # APPLICATIONS
 # ==============================
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -34,15 +38,16 @@ INSTALLED_APPS = [
 # ==============================
 # MIDDLEWARE
 # ==============================
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Handles static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'link_generator_app.middleware.NgrokSkipWarningMiddleware',
 ]
 
 ROOT_URLCONF = 'unique_link_generator.urls'
@@ -50,6 +55,7 @@ ROOT_URLCONF = 'unique_link_generator.urls'
 # ==============================
 # TEMPLATES
 # ==============================
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -69,24 +75,33 @@ TEMPLATES = [
 WSGI_APPLICATION = 'unique_link_generator.wsgi.application'
 
 # ==============================
-# DATABASE
+# DATABASE (SQLite for both)
 # ==============================
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 # ==============================
 # STATIC FILES
 # ==============================
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ==============================
-# PROXY / CLOUD SUPPORT
+# SECURITY SETTINGS (Production Safe)
 # ==============================
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
+
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True

@@ -1,150 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Protected Link Generator</title>
+<meta charset="UTF-8">
+<title>Protected Link Generator</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: "Segoe UI", sans-serif;
-        }
+<style>
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
+*{
+box-sizing:border-box;
+font-family:Segoe UI,sans-serif;
+}
 
-        .card {
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(15px);
-            padding: 40px;
-            border-radius: 16px;
-            width: 100%;
-            max-width: 500px;
-            box-shadow: 0 0 40px rgba(0,0,0,0.5);
-            animation: fadeIn 1s ease;
-        }
+body{
+margin:0;
+min-height:100vh;
+background:linear-gradient(120deg,#0f2027,#203a43,#2c5364);
+display:flex;
+align-items:center;
+justify-content:center;
+color:white;
+}
 
-        h2 {
-            text-align: center;
-            margin-bottom: 25px;
-            letter-spacing: 1px;
-        }
+.card{
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(15px);
+padding:40px;
+border-radius:16px;
+width:100%;
+max-width:500px;
+box-shadow:0 0 40px rgba(0,0,0,0.5);
+}
 
-        label {
-            font-size: 14px;
-            opacity: 0.8;
-        }
+h2{
+text-align:center;
+margin-bottom:25px;
+}
 
-        input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            outline: none;
-            margin-top: 6px;
-            margin-bottom: 20px;
-            font-size: 15px;
-        }
+input{
+width:100%;
+padding:12px;
+border-radius:8px;
+border:none;
+outline:none;
+margin-top:6px;
+margin-bottom:20px;
+}
 
-        button {
-            width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            border: none;
-            background: linear-gradient(45deg, #00c6ff, #0072ff);
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+button{
+width:100%;
+padding:14px;
+border-radius:10px;
+border:none;
+background:linear-gradient(45deg,#00c6ff,#0072ff);
+color:white;
+font-size:16px;
+cursor:pointer;
+}
 
-        button:hover {
-            transform: scale(1.03);
-            box-shadow: 0 0 15px #00c6ff;
-        }
+button:hover{
+transform:scale(1.03);
+box-shadow:0 0 15px #00c6ff;
+}
 
-        .result {
-            margin-top: 25px;
-            padding: 15px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 10px;
-            animation: fadeIn 0.8s ease;
-        }
+.result{
+margin-top:25px;
+padding:15px;
+background:rgba(0,0,0,0.4);
+border-radius:10px;
+}
 
-        .result a {
-            color: #00e6ff;
-            word-break: break-all;
-        }
+.result a{
+color:#00e6ff;
+word-break:break-all;
+}
 
-        .copy-btn {
-            margin-top: 10px;
-            background: linear-gradient(45deg, #00ff99, #00cc66);
-        }
+.copy-btn{
+margin-top:10px;
+background:linear-gradient(45deg,#00ff99,#00cc66);
+}
 
-        .copy-btn:hover {
-            box-shadow: 0 0 12px #00ff99;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 12px;
-            opacity: 0.6;
-        }
-    </style>
+</style>
 </head>
+
 <body>
 
 <div class="card">
-    <h2>🔐 Protected Link Generator</h2>
 
-    <form method="POST">
-        {% csrf_token %}
+<h2>🔐 Protected Link Generator</h2>
 
-        <label>Original URL</label>
-        <input type="url" name="original_url" placeholder="https://example.com" required>
+<form method="POST">
+{% csrf_token %}
 
-        <label>Device Limit</label>
-        <input type="number" name="device_limit" min="1" placeholder="Enter device limit" required>
+<label>Original URL</label>
+<input type="url" name="original_url" placeholder="https://example.com" required>
 
-        <button type="submit">Generate Secure Link</button>
-    </form>
+<label>Device Limit</label>
+<input type="number" name="device_limit" min="1" placeholder="Enter device limit" required>
 
-    {% if protected_url %}
-    <div class="result">
-        <p><b>Generated Link:</b></p>
-        <a id="generatedLink" href="{{ protected_url }}" target="_blank">
-            {{ protected_url }}
-        </a>
+<button type="submit">Generate Secure Link</button>
 
-        <button class="copy-btn" onclick="copyLink()">📋 Copy Link</button>
-    </div>
-    {% endif %}
+</form>
 
-    <footer>
-         Link Protection System ⚡
-    </footer>
+{% if protected_url %}
+
+<div class="result">
+
+<p><b>Generated Link:</b></p>
+
+<a id="generatedLink" href="{{ protected_url }}" target="_blank">
+{{ protected_url }}
+</a>
+
+<button class="copy-btn" onclick="copyLink()">📋 Copy Link</button>
+
+</div>
+
+{% endif %}
+
 </div>
 
 <script>
-function copyLink() {
-    const link = document.getElementById("generatedLink").textContent;
-    navigator.clipboard.writeText(link).then(() => {
-        alert("Link copied to clipboard!");
-    });
+
+function copyLink(){
+
+const link=document.getElementById("generatedLink").textContent;
+
+navigator.clipboard.writeText(link).then(()=>{
+
+alert("Link copied!");
+
+});
+
 }
+
 </script>
 
 </body>

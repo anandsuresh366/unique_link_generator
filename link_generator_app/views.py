@@ -1,58 +1,61 @@
 import uuid
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden, HttpResponse
+from django.http import HttpResponseForbidden
 from django.conf import settings
+from django.db import transaction
+from django.urls import reverse
+
 from .models import ProtectedLink, Device
+from .forms import LinkForm
 from .utils import get_fingerprint
+
 
 def generate_link(request):
 
-
     if request.method == "POST":
-        original_url = request.POST.get("original_url")
-        device_limit = int(request.POST.get("device_limit"))
+        form = LinkForm(request.POST)
 
-        link = ProtectedLink.objects.create(
-            original_url=original_url,
-            device_limit=device_limit
-        )
+        if form.is_valid():
+            original_url = form.cleaned_data["original_url"]
+            device_limit = form.cleaned_data["device_limit"]
 
-        base_url = getattr(settings, "BASE_URL", request.build_absolute_uri("/").rstrip("/"))
-        protected_url = f"{base_url}/go/{link.token}/"
+            link = ProtectedLink.objects.create(
+                original_url=original_url,
+                device_limit=device_limit
+            )
 
-        return render(request, "index.html", {"protected_url": protected_url})
+            protected_url = request.build_absolute_uri(
+                reverse("protected", args=[link.token])
+            )
 
-    return render(request, "index.html")
+            return render(request, "index.html", {
+                "protected_url": protected_url,
+                "form": form
+            })
 
+    else:
+        form = LinkForm()
 
-import uuid
-from django.db import IntegrityError
+    return render(request, "index.html", {"form": form})
 
-import uuid
-from django.shortcuts import redirect, get_object_or_404
-from django.http import HttpResponseForbidden
-from django.db import transaction
 
 def protected_view(request, token):
+
     link = get_object_or_404(ProtectedLink, token=token)
 
-    # Get or create stable device ID cookie
-    device_id = request.COOKIES.get("device_id")
-    if not device_id:
-        device_id = str(uuid.uuid4())
+    fingerprint = get_fingerprint(request)
 
     with transaction.atomic():
-        # Check if this device already registered
+
         device_exists = Device.objects.filter(
             link=link,
-            fingerprint=device_id
+            fingerprint=fingerprint
         ).exists()
 
         if not device_exists:
-            current_devices = Device.objects.filter(link=link).count()
 
-            if current_devices >= link.device_limit:
+            if Device.objects.filter(link=link).count() >= link.device_limit:
                 return HttpResponseForbidden("""
                     <h1 style="color:red;text-align:center;margin-top:20%;">
                         DEVICE LIMIT REACHED
@@ -61,12 +64,7 @@ def protected_view(request, token):
 
             Device.objects.create(
                 link=link,
-                fingerprint=device_id
+                fingerprint=fingerprint
             )
 
-    response = redirect(link.original_url)
-    response.set_cookie("device_id", device_id, max_age=60*60*24*365)
-    return response
-
-
-
+    return redirect(link.original_url)

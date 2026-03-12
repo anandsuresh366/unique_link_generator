@@ -1,13 +1,11 @@
-import uuid
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.urls import reverse
+import uuid
 
 from .models import ProtectedLink, Device
 from .forms import LinkForm
-from .utils import get_fingerprint
 
 
 def generate_link(request):
@@ -43,7 +41,12 @@ def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    fingerprint = get_fingerprint(request)
+    fingerprint = request.COOKIES.get("device_fp")
+    new_cookie = False
+
+    if not fingerprint:
+        fingerprint = str(uuid.uuid4())
+        new_cookie = True
 
     with transaction.atomic():
 
@@ -58,9 +61,9 @@ def protected_view(request, token):
 
             if device_count >= link.device_limit:
                 return HttpResponseForbidden("""
-                    <h1 style="color:red;text-align:center;margin-top:20%;">
-                        DEVICE LIMIT REACHED
-                    </h1>
+                <h1 style="color:red;text-align:center;margin-top:20%;">
+                DEVICE LIMIT REACHED
+                </h1>
                 """)
 
             Device.objects.create(
@@ -70,12 +73,11 @@ def protected_view(request, token):
 
     response = redirect(link.original_url)
 
-    # Set fingerprint cookie if not already set
-    if not request.COOKIES.get("device_fp"):
+    if new_cookie:
         response.set_cookie(
             "device_fp",
             fingerprint,
-            max_age=60*60*24*365  # 1 year
+            max_age=60*60*24*365
         )
 
     return response

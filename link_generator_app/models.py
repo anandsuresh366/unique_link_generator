@@ -1,6 +1,7 @@
 import secrets
 from django.db import models
 
+
 class ProtectedLink(models.Model):
     original_url = models.URLField()
     device_limit = models.PositiveIntegerField()
@@ -17,8 +18,17 @@ class ProtectedLink(models.Model):
 
 
 class Device(models.Model):
-    link = models.ForeignKey(ProtectedLink, on_delete=models.CASCADE)
-    fingerprint = models.CharField(max_length=255, db_index=True)
+    link = models.ForeignKey(
+        ProtectedLink,
+        on_delete=models.CASCADE,
+        related_name="devices"
+    )
+
+    fingerprint = models.CharField(
+        max_length=255,
+        db_index=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -27,7 +37,7 @@ class Device(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['link', 'fingerprint'],
-                name='unique_device_per_link'
+                fields=["link", "fingerprint"],
+                name="unique_device_per_link"
             )
         ]

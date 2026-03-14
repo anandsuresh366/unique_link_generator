@@ -48,7 +48,6 @@ def protected_view(request, token):
 
     with transaction.atomic():
 
-        # Check if device already registered
         device_exists = Device.objects.filter(
             link=link,
             fingerprint=fingerprint
@@ -58,8 +57,8 @@ def protected_view(request, token):
 
             device_count = Device.objects.filter(link=link).count()
 
-            # Check BEFORE adding device
-            if device_count >= link.device_limit:
+            # ADD +1 internally
+            if device_count >= (link.device_limit + 1):
                 return render(request, "limit.html", status=403)
 
             Device.objects.create(

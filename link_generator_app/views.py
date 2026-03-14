@@ -4,9 +4,9 @@ from django.db import transaction
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, get_object_or_404, render
 from django.urls import reverse
-
 from link_generator_app.forms import LinkForm
 from link_generator_app.models import Device, ProtectedLink
+from link_generator_app.utils import get_fingerprint
 
 
 def generate_link(request):
@@ -39,48 +39,37 @@ def generate_link(request):
 
 
 
-import uuid
-from django.db import transaction
-from django.shortcuts import redirect, get_object_or_404, render
-from link_generator_app.models import Device, ProtectedLink
-
-
 def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    device_id = request.COOKIES.get("device_id")
-
-    if not device_id:
-        device_id = str(uuid.uuid4())
+    fingerprint = get_fingerprint(request)
 
     with transaction.atomic():
 
         device_exists = Device.objects.filter(
             link=link,
-            fingerprint=device_id
+            fingerprint=fingerprint
         ).exists()
 
         if not device_exists:
 
             device_count = Device.objects.filter(link=link).count()
 
-            # internally allow +1 to compensate double request
-            allowed_limit = link.device_limit + 1
-
-            if device_count >= allowed_limit:
+            if device_count >= link.device_limit:
                 return render(request, "limit.html", status=403)
 
             Device.objects.create(
                 link=link,
-                fingerprint=device_id
+                fingerprint=fingerprint
             )
 
     response = redirect(link.original_url)
 
+    # 🔑 Save fingerprint in browser
     response.set_cookie(
-        "device_id",
-        device_id,
+        "device_fp",
+        fingerprint,
         max_age=60*60*24*365,
         httponly=True,
         samesite="Lax"

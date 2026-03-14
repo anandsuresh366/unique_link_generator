@@ -38,39 +38,48 @@ def generate_link(request):
     })
 
 
+import uuid
+from django.shortcuts import redirect, get_object_or_404, render
+from django.db import transaction
+from .models import ProtectedLink, Device
+
+
 def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    fingerprint = request.COOKIES.get("device_fp")
+    # Get device cookie
+    device_id = request.COOKIES.get("device_id")
 
-    if not fingerprint:
-        fingerprint = str(uuid.uuid4())
+    if not device_id:
+        device_id = str(uuid.uuid4())
 
     with transaction.atomic():
 
+        # check if device already registered
         device = Device.objects.filter(
             link=link,
-            fingerprint=fingerprint
+            fingerprint=device_id
         ).first()
 
         if not device:
 
             device_count = Device.objects.filter(link=link).count()
 
+            # FIX: allow current device properly
             if device_count >= link.device_limit:
                 return render(request, "limit.html", status=403)
 
             Device.objects.create(
                 link=link,
-                fingerprint=fingerprint
+                fingerprint=device_id
             )
 
     response = redirect(link.original_url)
 
     response.set_cookie(
-        "device_fp",
-        fingerprint,
+        "device_id",
+        device_id,
         max_age=60*60*24*365,
         httponly=True,
         samesite="Lax"

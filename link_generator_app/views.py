@@ -43,23 +43,22 @@ def protected_view(request, token):
     link = get_object_or_404(ProtectedLink, token=token)
 
     fingerprint = request.COOKIES.get("device_fp")
-    new_cookie = False
 
     if not fingerprint:
         fingerprint = str(uuid.uuid4())
-        new_cookie = True
 
     with transaction.atomic():
 
-        # Lock device rows for this link
-        devices = Device.objects.select_for_update().filter(link=link)
+        device = Device.objects.filter(
+            link=link,
+            fingerprint=fingerprint
+        ).first()
 
-        # Check if this device already exists
-        device_exists = devices.filter(fingerprint=fingerprint).exists()
+        if not device:
 
-        if not device_exists:
+            device_count = Device.objects.filter(link=link).count()
 
-            if devices.count() >= link.device_limit:
+            if device_count >= link.device_limit:
                 return render(request, "limit.html", status=403)
 
             Device.objects.create(
@@ -69,13 +68,12 @@ def protected_view(request, token):
 
     response = redirect(link.original_url)
 
-    if new_cookie:
-        response.set_cookie(
-            "device_fp",
-            fingerprint,
-            max_age=60*60*24*365,
-            httponly=True,
-            samesite="Lax"
-        )
+    response.set_cookie(
+        "device_fp",
+        fingerprint,
+        max_age=60*60*24*365,
+        httponly=True,
+        samesite="Lax"
+    )
 
     return response

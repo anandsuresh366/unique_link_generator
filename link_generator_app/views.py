@@ -20,9 +20,10 @@ def generate_link(request):
             original_url = form.cleaned_data["original_url"]
             device_limit = form.cleaned_data["device_limit"]
 
+            # internally store limit + 1
             link = ProtectedLink.objects.create(
                 original_url=original_url,
-                device_limit=device_limit
+                device_limit=device_limit + 1
             )
 
             protected_url = request.build_absolute_uri(

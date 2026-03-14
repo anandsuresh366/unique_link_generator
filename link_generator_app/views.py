@@ -37,9 +37,11 @@ def generate_link(request):
         "protected_url": protected_url
     })
 
-
-
 def protected_view(request, token):
+
+    # 🔹 Ignore browser favicon request
+    if request.path.endswith("favicon.ico"):
+        return redirect("/")
 
     link = get_object_or_404(ProtectedLink, token=token)
 
@@ -66,7 +68,6 @@ def protected_view(request, token):
 
     response = redirect(link.original_url)
 
-    # 🔑 Save fingerprint in browser
     response.set_cookie(
         "device_fp",
         fingerprint,

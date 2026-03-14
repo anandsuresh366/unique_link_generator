@@ -7,7 +7,6 @@ from django.urls import reverse
 
 from link_generator_app.forms import LinkForm
 from link_generator_app.models import Device, ProtectedLink
-from link_generator_app.utils import get_fingerprint
 
 
 def generate_link(request):
@@ -44,26 +43,38 @@ def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    fingerprint = get_fingerprint(request)
+    device_id = request.COOKIES.get("device_id")
+
+
+    if not device_id:
+        device_id = str(uuid.uuid4())
 
     with transaction.atomic():
 
-        device_exists = Device.objects.filter(
+        device, created = Device.objects.get_or_create(
             link=link,
-            fingerprint=fingerprint
-        ).exists()
+            fingerprint=device_id
+        )
 
-        if not device_exists:
+        device_count = Device.objects.filter(link=link).count()
 
-            device_count = Device.objects.filter(link=link).count()
 
-            # ADD +1 internally
-            if device_count >= (link.device_limit + 1):
-                return render(request, "limit.html", status=403)
+        allowed_limit = link.device_limit + 1
 
-            Device.objects.create(
-                link=link,
-                fingerprint=fingerprint
-            )
+        if device_count > allowed_limit:
+            if created:
+                device.delete()
 
-    return redirect(link.original_url)
+            return render(request, "limit.html", status=403)
+
+    response = redirect(link.original_url)
+
+    response.set_cookie(
+        "device_id",
+        device_id,
+        max_age=60*60*24*365,
+        httponly=True,
+        samesite="Lax"
+    )
+
+    return response

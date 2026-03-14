@@ -1,14 +1,17 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden
-from django.db import transaction
-from django.urls import reverse
 import uuid
 
-from .models import ProtectedLink, Device
-from .forms import LinkForm
+from django.db import transaction
+from django.http import HttpResponseForbidden
+from django.shortcuts import redirect, get_object_or_404, render
+from django.urls import reverse
+
+from link_generator_app.forms import LinkForm
+from link_generator_app.models import Device, ProtectedLink
 
 
 def generate_link(request):
+
+    protected_url = None
 
     if request.method == "POST":
         form = LinkForm(request.POST)
@@ -26,15 +29,13 @@ def generate_link(request):
                 reverse("protected", args=[link.token])
             )
 
-            return render(request, "index.html", {
-                "protected_url": protected_url,
-                "form": form
-            })
-
     else:
         form = LinkForm()
 
-    return render(request, "index.html", {"form": form})
+    return render(request, "index.html", {
+        "form": form,
+        "protected_url": protected_url
+    })
 
 
 def protected_view(request, token):
@@ -50,21 +51,16 @@ def protected_view(request, token):
 
     with transaction.atomic():
 
-        device_exists = Device.objects.filter(
-            link=link,
-            fingerprint=fingerprint
-        ).exists()
+        # Lock device rows for this link
+        devices = Device.objects.select_for_update().filter(link=link)
+
+        # Check if this device already exists
+        device_exists = devices.filter(fingerprint=fingerprint).exists()
 
         if not device_exists:
 
-            device_count = Device.objects.filter(link=link).count()
-
-            if device_count >= link.device_limit:
-                return HttpResponseForbidden("""
-                <h1 style="color:red;text-align:center;margin-top:20%;">
-                DEVICE LIMIT REACHED
-                </h1>
-                """)
+            if devices.count() >= link.device_limit:
+                return render(request, "limit.html", status=403)
 
             Device.objects.create(
                 link=link,
@@ -77,7 +73,9 @@ def protected_view(request, token):
         response.set_cookie(
             "device_fp",
             fingerprint,
-            max_age=60*60*24*365
+            max_age=60*60*24*365,
+            httponly=True,
+            samesite="Lax"
         )
 
     return response

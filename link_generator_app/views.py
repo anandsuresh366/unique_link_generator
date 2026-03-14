@@ -38,17 +38,15 @@ def generate_link(request):
     })
 
 
-import uuid
-from django.shortcuts import redirect, get_object_or_404, render
-from django.db import transaction
-from .models import ProtectedLink, Device
-
 
 def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    # Get device cookie
+    # ignore favicon and browser prefetch
+    if request.path.endswith("favicon.ico"):
+        return redirect(link.original_url)
+
     device_id = request.COOKIES.get("device_id")
 
     if not device_id:
@@ -56,17 +54,15 @@ def protected_view(request, token):
 
     with transaction.atomic():
 
-        # check if device already registered
-        device = Device.objects.filter(
+        device_exists = Device.objects.filter(
             link=link,
             fingerprint=device_id
-        ).first()
+        ).exists()
 
-        if not device:
+        if not device_exists:
 
             device_count = Device.objects.filter(link=link).count()
 
-            # FIX: allow current device properly
             if device_count >= link.device_limit:
                 return render(request, "limit.html", status=403)
 

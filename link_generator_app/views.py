@@ -45,18 +45,8 @@ def protected_view(request, token):
 
     device_id = request.COOKIES.get("device_id")
 
-
     if not device_id:
         device_id = str(uuid.uuid4())
-        response = redirect(link.original_url)
-        response.set_cookie(
-            "device_id",
-            device_id,
-            max_age=60*60*24*365,
-            httponly=True,
-            samesite="Lax"
-        )
-        return response
 
     with transaction.atomic():
 
@@ -69,6 +59,7 @@ def protected_view(request, token):
 
             device_count = Device.objects.filter(link=link).count()
 
+            # check limit BEFORE creating device
             if device_count >= link.device_limit:
                 return render(request, "limit.html", status=403)
 
@@ -77,4 +68,14 @@ def protected_view(request, token):
                 fingerprint=device_id
             )
 
-    return redirect(link.original_url)
+    response = redirect(link.original_url)
+
+    response.set_cookie(
+        "device_id",
+        device_id,
+        max_age=60*60*24*365,
+        httponly=True,
+        samesite="Lax"
+    )
+
+    return response

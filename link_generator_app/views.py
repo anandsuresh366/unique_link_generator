@@ -43,33 +43,26 @@ def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
 
-    # ignore favicon and browser prefetch
-    if request.path.endswith("favicon.ico"):
-        return redirect(link.original_url)
-
     device_id = request.COOKIES.get("device_id")
 
+    # Create device id if not exists
     if not device_id:
         device_id = str(uuid.uuid4())
 
     with transaction.atomic():
 
-        device_exists = Device.objects.filter(
+        device, created = Device.objects.get_or_create(
             link=link,
             fingerprint=device_id
-        ).exists()
+        )
 
-        if not device_exists:
+        device_count = Device.objects.filter(link=link).count()
 
-            device_count = Device.objects.filter(link=link).count()
+        if device_count > link.device_limit:
+            if created:
+                device.delete()
 
-            if device_count >= link.device_limit:
-                return render(request, "limit.html", status=403)
-
-            Device.objects.create(
-                link=link,
-                fingerprint=device_id
-            )
+            return render(request, "limit.html", status=403)
 
     response = redirect(link.original_url)
 

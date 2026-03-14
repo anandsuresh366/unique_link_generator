@@ -39,6 +39,12 @@ def generate_link(request):
 
 
 
+import uuid
+from django.db import transaction
+from django.shortcuts import redirect, get_object_or_404, render
+from link_generator_app.models import Device, ProtectedLink
+
+
 def protected_view(request, token):
 
     link = get_object_or_404(ProtectedLink, token=token)
@@ -59,8 +65,10 @@ def protected_view(request, token):
 
             device_count = Device.objects.filter(link=link).count()
 
-            # check limit BEFORE creating device
-            if device_count >= link.device_limit:
+            # internally allow +1 to compensate double request
+            allowed_limit = link.device_limit + 1
+
+            if device_count >= allowed_limit:
                 return render(request, "limit.html", status=403)
 
             Device.objects.create(

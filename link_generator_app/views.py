@@ -9,7 +9,7 @@ from link_generator_app.models import Device, ProtectedLink
 
 
 # ----------------------------
-# LINK GENERATOR
+# LINK GENERATION
 # ----------------------------
 def generate_link(request):
 
@@ -22,9 +22,10 @@ def generate_link(request):
             original_url = form.cleaned_data["original_url"]
             device_limit = form.cleaned_data["device_limit"]
 
+            # 🔹 store internal limit as n + 1
             link = ProtectedLink.objects.create(
                 original_url=original_url,
-                device_limit=device_limit
+                device_limit=device_limit + 1
             )
 
             protected_url = request.build_absolute_uri(
@@ -49,21 +50,8 @@ def protected_view(request, token):
 
     device_id = request.COOKIES.get("device_id")
 
-    # FIRST VISIT → assign cookie and reload
     if not device_id:
         device_id = str(uuid.uuid4())
-
-        response = redirect(request.path)
-
-        response.set_cookie(
-            "device_id",
-            device_id,
-            max_age=60 * 60 * 24 * 365,
-            httponly=True,
-            samesite="Lax"
-        )
-
-        return response
 
     with transaction.atomic():
 
@@ -84,4 +72,14 @@ def protected_view(request, token):
                 fingerprint=device_id
             )
 
-    return redirect(link.original_url)
+    response = redirect(link.original_url)
+
+    response.set_cookie(
+        "device_id",
+        device_id,
+        max_age=60*60*24*365,
+        httponly=True,
+        samesite="Lax"
+    )
+
+    return response
